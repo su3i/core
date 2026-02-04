@@ -9,11 +9,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
+	"github.com/kelseyhightower/envconfig"
+
+	"github.com/darksuei/suei-intelligence/internal/application/metadata"
 	"github.com/darksuei/suei-intelligence/internal/config"
 	"github.com/darksuei/suei-intelligence/internal/infrastructure/database"
 	"github.com/darksuei/suei-intelligence/internal/infrastructure/server"
-	"github.com/joho/godotenv"
-	"github.com/kelseyhightower/envconfig"
 )
 
 func main() {
@@ -32,11 +34,16 @@ func main() {
 	var databaseCfg config.DatabaseConfig
 	err = envconfig.Process("", &databaseCfg)
 	if err != nil {
-		log.Fatalf("Failed to load common config: %v", err)
+		log.Fatalf("Failed to load database config: %v", err)
 	}
 
+	// Initialize database
 	database.Initialize(&databaseCfg)
+
+	// Run database migrations
 	database.Migrate(&databaseCfg)
+
+	metadata.LoadBootstrapToken(commonCfg.BootstrapToken, &databaseCfg)
 
 	router := server.InitializeRouter()
 

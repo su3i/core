@@ -10,8 +10,8 @@ import (
 
 	"github.com/darksuei/suei-intelligence/internal/config"
 	"github.com/darksuei/suei-intelligence/internal/domain/account"
-	"github.com/darksuei/suei-intelligence/internal/domain/appconfig"
 	"github.com/darksuei/suei-intelligence/internal/domain/datasource"
+	"github.com/darksuei/suei-intelligence/internal/domain/metadata"
 	"github.com/darksuei/suei-intelligence/internal/domain/organization"
 	"github.com/darksuei/suei-intelligence/internal/domain/project"
 )
@@ -77,9 +77,9 @@ func Migrate() {
 		log.Fatalf("failed to migrate postgres database (account): %v", err)
 	}
 
-	err = DB.AutoMigrate(&appconfig.AppConfig{})
+	err = DB.AutoMigrate(&metadata.Metadata{})
 	if err != nil {
-		log.Fatalf("failed to migrate postgres database (appconfig): %v", err)
+		log.Fatalf("failed to migrate postgres database (metadata): %v", err)
 	}
 	
 	err = DB.AutoMigrate(&project.Project{})

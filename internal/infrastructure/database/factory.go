@@ -3,8 +3,12 @@ package database
 import (
 	"github.com/darksuei/suei-intelligence/internal/config"
 	"github.com/darksuei/suei-intelligence/internal/domain"
+	"github.com/darksuei/suei-intelligence/internal/domain/metadata"
 	"github.com/darksuei/suei-intelligence/internal/infrastructure/database/postgres"
+	postgresRepository "github.com/darksuei/suei-intelligence/internal/infrastructure/database/postgres/repositories"
 	"github.com/darksuei/suei-intelligence/internal/infrastructure/database/sqlite"
+	sqliteRepository "github.com/darksuei/suei-intelligence/internal/infrastructure/database/sqlite/repositories"
+	"gorm.io/gorm"
 )
 
 func Initialize(config *config.DatabaseConfig) {
@@ -26,5 +30,29 @@ func Migrate(config *config.DatabaseConfig) {
 			sqlite.Migrate()
 		default:
 			sqlite.Migrate() // Treat SQLite as Default
+	}
+}
+
+func GetDB(config *config.DatabaseConfig) *gorm.DB {
+	switch config.DatabaseType {
+		case domain.DatabaseTypePostgres:
+			return postgres.DB
+		case domain.DatabaseTypeSqlite:
+			return sqlite.DB
+		default:
+			return sqlite.DB // Treat SQLite as Default
+	}
+}
+
+func NewMetadataRepository(config *config.DatabaseConfig) metadata.MetadataRepository {
+	db := GetDB(config)
+
+	switch config.DatabaseType {
+		case domain.DatabaseTypePostgres:
+			return postgresRepository.NewMetadataRepository(db)
+		case domain.DatabaseTypeSqlite:
+			return sqliteRepository.NewMetadataRepository(db)
+		default:
+			return sqliteRepository.NewMetadataRepository(db) // Treat SQLite as Default
 	}
 }
