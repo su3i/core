@@ -14,6 +14,5 @@ func Health(c *gin.Context) {
 		"message": "Healthy",
 		"version": "v0.0.0",
 		"copyright": "2026 SUEI INC.",
-		"uptime": "",
 	  })
 }
