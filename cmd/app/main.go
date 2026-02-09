@@ -12,6 +12,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
 
+	"github.com/darksuei/suei-intelligence/internal/application/authorization"
 	"github.com/darksuei/suei-intelligence/internal/application/metadata"
 	"github.com/darksuei/suei-intelligence/internal/config"
 	"github.com/darksuei/suei-intelligence/internal/infrastructure/database"
@@ -31,6 +32,12 @@ func main() {
 		log.Fatalf("Failed to load common config: %v", err)
 	}
 
+	var casbinCfg config.CasbinConfig
+	err = envconfig.Process("", &casbinCfg)
+	if err != nil {
+		log.Fatalf("Failed to load casbin config: %v", err)
+	}
+
 	var databaseCfg config.DatabaseConfig
 	err = envconfig.Process("", &databaseCfg)
 	if err != nil {
@@ -43,7 +50,11 @@ func main() {
 	// Run database migrations
 	database.Migrate(&databaseCfg)
 
+	// Load bootstrap token
 	metadata.LoadBootstrapToken(commonCfg.BootstrapToken, &databaseCfg)
+
+	// Initialize authorization module
+	authorization.Initialize(&casbinCfg)
 
 	router := server.InitializeRouter()
 

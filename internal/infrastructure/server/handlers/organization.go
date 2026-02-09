@@ -7,16 +7,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/kelseyhightower/envconfig"
 
+	authorizationService "github.com/darksuei/suei-intelligence/internal/application/authorization"
 	organizationService "github.com/darksuei/suei-intelligence/internal/application/organization"
 	"github.com/darksuei/suei-intelligence/internal/config"
+	authorizationDomain "github.com/darksuei/suei-intelligence/internal/domain/authorization"
 	organizationDomain "github.com/darksuei/suei-intelligence/internal/domain/organization"
+	"github.com/darksuei/suei-intelligence/internal/infrastructure/server/utils"
 )
 
 func NewOrganization(c *gin.Context) {
 	// Parse the request body
 	var req struct {
 		Name string `json:"name" binding:"required"`
-		Key string `json:"key" binding:"required"`
 		Scope string `json:"scope" binding:"required"`
 	}
 
@@ -33,7 +35,7 @@ func NewOrganization(c *gin.Context) {
 	}
 
 	// Create organization
-	_organization, err := organizationService.NewOrganization(req.Name, req.Key, organizationDomain.OrgScope(req.Scope), &databaseCfg)
+	_organization, err := organizationService.NewOrganization(req.Name, "default", organizationDomain.OrgScope(req.Scope), &databaseCfg)
 
 	if err != nil {
 		log.Printf("Error creating organization: %v", err)
@@ -54,12 +56,15 @@ func RetrieveOrganization(c *gin.Context) {
 	if err := envconfig.Process("", &databaseCfg); err != nil {
 		log.Fatalf("Failed to load database config: %v", err)
 	}
+	
+	key := "default" // Default organization key
 
-	// Get key from route params
-	key := c.Param("key")
-	if key == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Missing required parameter: key",
+	// Authorization
+	allow, err := authorizationService.EnforceRoles(utils.GetUserRolesFromContext(c), "org", authorizationDomain.Organization, "read")
+
+	if err != nil || !allow {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "forbidden",
 		})
 		return
 	}

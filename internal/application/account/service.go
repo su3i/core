@@ -9,7 +9,7 @@ import (
 	"github.com/darksuei/suei-intelligence/internal/infrastructure/database"
 )
 
-func NewAccount(name string, email string, password string, role account.AccountRole, cfg *config.DatabaseConfig) (*account.Account, error) {
+func NewAccount(name string, email string, password string, role account.AccountRole, internalRoleJson map[string]string, cfg *config.DatabaseConfig) (*account.Account, error) {
 	_accountRepository := database.NewAccountRepository(cfg)
 
 	// Check if email already exists - Fail fast
@@ -44,6 +44,7 @@ func NewAccount(name string, email string, password string, role account.Account
 		Name: name,
 		Email: email,
 		Role: role,
+		InternalRoles: internalRoleJson,
 		PasswordEnc: passwordEnc,
 		MFAEnabled: false,
 		MFASecret: mfaSecret,

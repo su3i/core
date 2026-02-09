@@ -8,8 +8,11 @@ import (
 	"github.com/kelseyhightower/envconfig"
 
 	accountService "github.com/darksuei/suei-intelligence/internal/application/account"
+	authorizationService "github.com/darksuei/suei-intelligence/internal/application/authorization"
 	"github.com/darksuei/suei-intelligence/internal/config"
 	accountDomain "github.com/darksuei/suei-intelligence/internal/domain/account"
+	authorizationDomain "github.com/darksuei/suei-intelligence/internal/domain/authorization"
+	"github.com/darksuei/suei-intelligence/internal/infrastructure/server/utils"
 )
 
 func NewAccount(c *gin.Context) {
@@ -41,8 +44,14 @@ func NewAccount(c *gin.Context) {
 		return
 	}
 
+	internalRoleKey := accountDomain.BuildRoleKey("default", authorizationDomain.AuthorizationDomainOrg, req.Role)
+
+	internalRoleJson := map[string]string{
+		"default": internalRoleKey,
+	}
+
 	// Create account
-	_account, err := accountService.NewAccount(req.Name, req.Email, req.Password, role, &databaseCfg)
+	_account, err := accountService.NewAccount(req.Name, req.Email, req.Password, role, internalRoleJson, &databaseCfg)
 
 	if err != nil {
 		log.Printf("Error creating account: %v", err)
@@ -64,7 +73,16 @@ func RetrieveAccounts(c *gin.Context) {
 		log.Fatalf("Failed to load database config: %v", err)
 	}
 
-	// Retrieve account
+	allow, err := authorizationService.EnforceRoles(utils.GetUserRolesFromContext(c), "org", authorizationDomain.Organization, "read")
+
+	if err != nil || !allow {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "forbidden",
+		})
+		return
+	}
+
+	// Retrieve accounts
 	_accounts, err := accountService.RetrieveAccounts(&databaseCfg)
 
 	if err != nil {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/darksuei/suei-intelligence/internal/infrastructure/server/handlers"
+	middleware "github.com/darksuei/suei-intelligence/internal/infrastructure/server/middlewares"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,12 +18,12 @@ func InitializeRouter() *gin.Engine {
 
 	// Organization
 	router.POST("/organization", handlers.NewOrganization)
-	router.GET("/organization/:key", handlers.RetrieveOrganization)
+	router.GET("/organization/:key", middleware.AuthMiddleware(), handlers.RetrieveOrganization)
 
 	// Account
 	router.POST("/account", handlers.NewAccount)
 	router.GET("/account", handlers.RetrieveAccountByEmail)
-	router.GET("/accounts", handlers.RetrieveAccounts)
+	router.GET("/accounts", middleware.AuthMiddleware(), handlers.RetrieveAccounts)
 
 	// MFA
 	router.POST("/mfa/totp-uri", handlers.RetrieveTotpURI)

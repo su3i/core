@@ -1,4 +1,4 @@
-package auth
+package authentication
 
 type LoginDTO struct {
 	AccessToken string `json:"access_token"`

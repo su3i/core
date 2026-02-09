@@ -1,4 +1,4 @@
-package auth
+package authentication
 
 import (
 	"errors"
@@ -7,18 +7,18 @@ import (
 
 	"github.com/darksuei/suei-intelligence/internal/application/account"
 	"github.com/darksuei/suei-intelligence/internal/config"
-	"github.com/darksuei/suei-intelligence/internal/domain/auth"
+	"github.com/darksuei/suei-intelligence/internal/domain/authentication"
 	"github.com/darksuei/suei-intelligence/internal/infrastructure/cache"
 )
 
-func Login(email string, password string, commonCfg *config.CommonConfig, databaseCfg *config.DatabaseConfig) (*auth.LoginDTO, error) {
+func Login(email string, password string, commonCfg *config.CommonConfig, databaseCfg *config.DatabaseConfig) (*authentication.LoginDTO, error) {
 	_account, err := account.RetrieveAccountWithPassword(email, password, databaseCfg)
 
 	if err != nil || _account == nil {
 		return nil, errors.New("Invalid email or password")
 	}
 
-	accessToken, err := auth.GenerateJWT(auth.JWTParams{
+	accessToken, err := authentication.GenerateJWT(authentication.JWTParams{
 		Subject:   _account.ID,
 		Email:     _account.Email,
 		TTL:       time.Hour,
@@ -29,7 +29,7 @@ func Login(email string, password string, commonCfg *config.CommonConfig, databa
 		return nil, err
 	}
 
-	refreshToken, refreshTokenHash, err := auth.GenerateRefreshToken()
+	refreshToken, refreshTokenHash, err := authentication.GenerateRefreshToken()
 
 	err = cache.GetCache().Set(fmt.Sprintf("refresh-token-%s", refreshTokenHash), email, 7*24*time.Hour)
 
@@ -37,22 +37,29 @@ func Login(email string, password string, commonCfg *config.CommonConfig, databa
 		return nil, errors.New("Failed to rotate refresh token")
 	}
 
-	return &auth.LoginDTO{
+	return &authentication.LoginDTO{
 		AccessToken: accessToken,
 		RefreshToken: refreshToken,
 	}, nil
 }
 
-func LoginWithoutPassword(email string, commonCfg *config.CommonConfig, databaseCfg *config.DatabaseConfig) (*auth.LoginDTO, error) {
+func LoginWithoutPassword(email string, commonCfg *config.CommonConfig, databaseCfg *config.DatabaseConfig) (*authentication.LoginDTO, error) {
 	_account, err := account.RetrieveAccount(email, databaseCfg)
 
 	if err != nil || _account == nil {
 		return nil, errors.New("Invalid email or password")
 	}
 
-	accessToken, err := auth.GenerateJWT(auth.JWTParams{
+	internalRoles := make([]string, 0, len(_account.InternalRoles))
+
+	for _, v := range _account.InternalRoles {
+		internalRoles = append(internalRoles, v)
+	}
+
+	accessToken, err := authentication.GenerateJWT(authentication.JWTParams{
 		Subject:   _account.ID,
 		Email:     _account.Email,
+		Roles:	   internalRoles,
 		TTL:       time.Hour,
 		SecretKey: []byte(commonCfg.JWTSecret),
 	})
@@ -61,7 +68,7 @@ func LoginWithoutPassword(email string, commonCfg *config.CommonConfig, database
 		return nil, err
 	}
 
-	refreshToken, refreshTokenHash, err := auth.GenerateRefreshToken()
+	refreshToken, refreshTokenHash, err := authentication.GenerateRefreshToken()
 
 	err = cache.GetCache().Set(fmt.Sprintf("refresh-token-%s", refreshTokenHash), email, 7*24*time.Hour)
 
@@ -69,15 +76,15 @@ func LoginWithoutPassword(email string, commonCfg *config.CommonConfig, database
 		return nil, errors.New("Failed to rotate refresh token")
 	}
 	
-	return &auth.LoginDTO{
+	return &authentication.LoginDTO{
 		AccessToken: accessToken,
 		RefreshToken: refreshToken,
 	}, nil
 }
 
-func Refresh(rawRefresh string, commonCfg *config.CommonConfig, databaseCfg *config.DatabaseConfig) (*auth.LoginDTO, error) {
+func Refresh(rawRefresh string, commonCfg *config.CommonConfig, databaseCfg *config.DatabaseConfig) (*authentication.LoginDTO, error) {
 	// 1. Get refresh token from repository
-	oldRefreshTokenKey := fmt.Sprintf("refresh-token-%s", auth.HashRefreshToken(rawRefresh))
+	oldRefreshTokenKey := fmt.Sprintf("refresh-token-%s", authentication.HashRefreshToken(rawRefresh))
 	email, err := cache.GetCache().Get(oldRefreshTokenKey)
 
 	if err != nil {
@@ -92,7 +99,7 @@ func Refresh(rawRefresh string, commonCfg *config.CommonConfig, databaseCfg *con
 	}
 	
 	// 3. Issue new access token
-	accessToken, _ := auth.GenerateJWT(auth.JWTParams{
+	accessToken, _ := authentication.GenerateJWT(authentication.JWTParams{
 		Subject:   _account.ID,
 		Email:     _account.Email,
 		TTL:       time.Hour,
@@ -100,7 +107,7 @@ func Refresh(rawRefresh string, commonCfg *config.CommonConfig, databaseCfg *con
 	})
 
 	// 4. Rotate refresh token
-	newRaw, newHash, _ := auth.GenerateRefreshToken()
+	newRaw, newHash, _ := authentication.GenerateRefreshToken()
 
 	err = cache.GetCache().Delete(oldRefreshTokenKey)
 
@@ -114,7 +121,7 @@ func Refresh(rawRefresh string, commonCfg *config.CommonConfig, databaseCfg *con
 		return nil, errors.New("Failed to rotate refresh token")
 	}
 
-	return &auth.LoginDTO{
+	return &authentication.LoginDTO{
 		AccessToken:  accessToken,
 		RefreshToken: newRaw,
 	}, nil

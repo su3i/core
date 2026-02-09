@@ -2,8 +2,11 @@ package account
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"unicode"
 
+	"github.com/darksuei/suei-intelligence/internal/domain/authorization"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -14,6 +17,20 @@ func NewAccountRole(value string) (AccountRole, error) {
 	default:
 		return "", errors.New("invalid account role")
 	}
+}
+
+// BuildRoleKey builds an internal role key in the format:
+// <domain>_<role>__<entityKey>
+//
+// Examples:
+//  BuildRoleKey("org-1", AuthorizationDomainOrg, "superadmin")
+//   -> "org_superadmin__org-1"
+//
+//  BuildRoleKey("project-9", AuthorizationDomainProject, "editor")
+//   -> "project_editor__project-9"
+func BuildRoleKey(entityKey string, domain authorization.AuthorizationDomain, role string) string {
+	role = strings.ToLower(strings.TrimSpace(role))
+	return fmt.Sprintf("%s_%s__%s", domain, role, entityKey)
 }
 
 func CheckPassword(password string) error {

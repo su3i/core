@@ -9,10 +9,10 @@ import (
 
 	"github.com/darksuei/suei-intelligence/internal/application/account"
 	accountService "github.com/darksuei/suei-intelligence/internal/application/account"
-	"github.com/darksuei/suei-intelligence/internal/application/auth"
+	"github.com/darksuei/suei-intelligence/internal/application/authentication"
 	"github.com/darksuei/suei-intelligence/internal/application/mfa"
 	"github.com/darksuei/suei-intelligence/internal/config"
-	authDomain "github.com/darksuei/suei-intelligence/internal/domain/auth"
+	authenticationDomain "github.com/darksuei/suei-intelligence/internal/domain/authentication"
 	"github.com/darksuei/suei-intelligence/internal/infrastructure/cache"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -140,7 +140,7 @@ func MFA(c *gin.Context) {
 		_ = cache.GetCache().Delete(challengeKey)
 	}()
 
-	auth, err := auth.LoginWithoutPassword(email, &commonCfg, &databaseCfg)
+	auth, err := authentication.LoginWithoutPassword(email, &commonCfg, &databaseCfg)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -169,7 +169,7 @@ func RevokeToken(c *gin.Context) {
 		return
 	}
 
-	err := cache.GetCache().Delete(fmt.Sprintf("refresh-token-%s", authDomain.HashRefreshToken(req.RefreshToken)))
+	err := cache.GetCache().Delete(fmt.Sprintf("refresh-token-%s", authenticationDomain.HashRefreshToken(req.RefreshToken)))
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -206,7 +206,7 @@ func RefreshToken(c *gin.Context) {
 		log.Fatalf("Failed to load database config: %v", err)
 	}
 
-	authTokens, err := auth.Refresh(req.RefreshToken, &commonCfg, &databaseCfg)
+	authTokens, err := authentication.Refresh(req.RefreshToken, &commonCfg, &databaseCfg)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": "invalid or expired refresh token",
