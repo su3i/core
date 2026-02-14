@@ -6,26 +6,28 @@ import (
 	"strconv"
 
 	authorizationService "github.com/darksuei/suei-intelligence/internal/application/authorization"
-	"github.com/darksuei/suei-intelligence/internal/application/datasource"
+	datasourceService "github.com/darksuei/suei-intelligence/internal/application/datasource"
 	"github.com/darksuei/suei-intelligence/internal/config"
 	authorizationDomain "github.com/darksuei/suei-intelligence/internal/domain/authorization"
+	datasourceDomain "github.com/darksuei/suei-intelligence/internal/domain/datasource"
+	"github.com/darksuei/suei-intelligence/internal/infrastructure/etl"
 	"github.com/darksuei/suei-intelligence/internal/infrastructure/server/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/kelseyhightower/envconfig"
 )
 
+func SupportedDatasources(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"message": "success",
+		"datasources": datasourceDomain.SupportedDatasources,
+	})
+	return
+}
+
 func NewDatasource(c *gin.Context) {
 	var req struct {
-		// datasource name/identifier
-		// datasource connection details
-	}
-
-	key := c.Param("key") // assumes route is like /projects/:key
-	if key == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Project key is required",
-		})
-		return
+		SourceType string `json:"sourceType" binding:"required"`
+		Connection interface{} `json:"connection" binding:"required"`
 	}
 
 	if err := c.BindJSON(&req); err != nil {
@@ -35,16 +37,10 @@ func NewDatasource(c *gin.Context) {
 		return
 	}
 
-	var databaseCfg config.DatabaseConfig
-	if err := envconfig.Process("", &databaseCfg); err != nil {
-		log.Fatalf("Failed to load database config: %v", err)
-	}
-
-	createdByEmail, err := utils.GetUserEmailFromContext(c)
-
-	if err != nil || createdByEmail == nil{
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get account",
+	key := c.Param("key") // assumes route is like /projects/:key
+	if key == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Project key is required",
 		})
 		return
 	}
@@ -59,8 +55,31 @@ func NewDatasource(c *gin.Context) {
 		return
 	}
 
+	// Validate datasource
+	// - sourceType must be supported
+	// - connection params must be complete and valid
+
+	var databaseCfg config.DatabaseConfig
+	if err := envconfig.Process("", &databaseCfg); err != nil {
+		log.Fatalf("Failed to load database config: %v", err)
+	}
+
+	var _datasource *datasourceDomain.Datasource
+	var datasourceID uint
+
+	createdByEmail, err := utils.GetUserEmailFromContext(c)
+
+	if err != nil || createdByEmail == nil{
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to get account",
+		})
+		return
+	}
+
 	// Create datasource
-	_datasource, err := datasource.NewDatasource(key, *createdByEmail, &databaseCfg)
+	_datasource, err = datasourceService.NewDatasource(key, *createdByEmail, &databaseCfg)
+
+	datasourceID = _datasource.ID
 
 	if err != nil {
 		log.Printf("Error creating datasource: %v", err)
@@ -70,10 +89,25 @@ func NewDatasource(c *gin.Context) {
 		return
 	}
 
+	err = etl.GetInstance().CreateSourceConnection(strconv.FormatUint(uint64(datasourceID), 10), req.Connection)
+
+	if err != nil {
+		// Rollback CREATED Datasource
+		err = datasourceService.HardDeleteDatasource(uint(datasourceID), key, &databaseCfg)
+
+		log.Printf("Error creating datasource: %v", err)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "success",
 		"datasource": _datasource,
-		})
+	})
+	return
 }
 
 func RetrieveDatasources(c *gin.Context) {
@@ -101,7 +135,7 @@ func RetrieveDatasources(c *gin.Context) {
 	}
 
 	// Retrieve datasources
-	_datasources, err := datasource.RetrieveDatasources(key, &databaseCfg)
+	_datasources, err := datasourceService.RetrieveDatasources(key, &databaseCfg)
 
 	if err != nil {
 		log.Printf("Error retrieving datasources: %v", err)
@@ -117,7 +151,7 @@ func RetrieveDatasources(c *gin.Context) {
 	})
 }
 
-func DeleteDatasource (c *gin.Context) {
+func DeleteDatasource(c *gin.Context) {
 	key := c.Param("key") // assumes route is like /projects/:key
 	if key == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -158,7 +192,7 @@ func DeleteDatasource (c *gin.Context) {
 	}
 
 	// Delete datasource
-	err = datasource.SoftDeleteDatasource(uint(datasourceID), key, &databaseCfg)
+	err = datasourceService.SoftDeleteDatasource(uint(datasourceID), key, &databaseCfg)
 
 	if err != nil {
 		log.Printf("Error deleting datasource: %v", err)

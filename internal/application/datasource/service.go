@@ -38,6 +38,18 @@ func NewDatasource(key string, createdByEmail string, cfg *config.DatabaseConfig
 	return _datasourceRepository.Create(_datasource)
 }
 
+func RetrieveDatasource(datasourceID uint, key string, cfg *config.DatabaseConfig) (*datasource.Datasource, error) {
+	_datasourceRepository := database.NewDatasourceRepository(cfg)
+
+	_project, err := project.RetrieveProject(key, cfg)
+
+	if err != nil {
+		return nil, errors.New("Invalid project key")
+	}
+
+	return _datasourceRepository.FindOne(datasourceID, _project.ID)
+}
+
 func RetrieveDatasources(key string, cfg *config.DatabaseConfig) (*[]datasource.Datasource, error) {
 	_datasourceRepository := database.NewDatasourceRepository(cfg)
 
@@ -59,5 +71,17 @@ func SoftDeleteDatasource(datasourceID uint, key string, cfg *config.DatabaseCon
 		return errors.New("Invalid project key")
 	}
 
-	return _datasourceRepository.Delete(datasourceID, _project.ID)
+	return _datasourceRepository.SoftDelete(datasourceID, _project.ID)
+}
+
+func HardDeleteDatasource(datasourceID uint, key string, cfg *config.DatabaseConfig) error {
+	_datasourceRepository := database.NewDatasourceRepository(cfg)
+
+	_project, err := project.RetrieveProject(key, cfg)
+
+	if err != nil {
+		return errors.New("Invalid project key")
+	}
+
+	return _datasourceRepository.HardDelete(datasourceID, _project.ID)
 }

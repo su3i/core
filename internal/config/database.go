@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/darksuei/suei-intelligence/internal/domain"
+	domain "github.com/darksuei/suei-intelligence/internal/domain/database"
 )
 
 type DatabaseConfig struct {

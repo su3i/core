@@ -19,8 +19,10 @@ var Languages = []map[string]string{
 
 func SupportedLanguages(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
+		"message": "success",
 		"languages": Languages,
 	})
+	return
 }
 
 func SetLanguagePreference(c *gin.Context) {

@@ -1,4 +1,4 @@
-package domain
+package database
 
 type DatabaseType string
 

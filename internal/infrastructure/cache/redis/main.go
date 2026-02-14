@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/darksuei/suei-intelligence/internal/config"
-	"github.com/darksuei/suei-intelligence/internal/domain"
+	domain "github.com/darksuei/suei-intelligence/internal/domain/cache"
 	"github.com/redis/go-redis/v9"
 )
 

@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/darksuei/suei-intelligence/internal/config"
-	"github.com/darksuei/suei-intelligence/internal/domain"
+	domain "github.com/darksuei/suei-intelligence/internal/domain/cache"
 	"github.com/darksuei/suei-intelligence/internal/infrastructure/cache/memory"
 	"github.com/darksuei/suei-intelligence/internal/infrastructure/cache/redis"
 	"github.com/kelseyhightower/envconfig"

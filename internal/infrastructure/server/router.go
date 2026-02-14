@@ -55,6 +55,7 @@ func InitializeRouter() *gin.Engine {
 	router.GET("/projects", middleware.AuthMiddleware(), handlers.RetrieveProjects)
 
 	// Datasource
+	router.GET("/supported-datasources", middleware.AuthMiddleware(), handlers.SupportedDatasources)
 	router.POST("/project/:key/datasource", middleware.AuthMiddleware(), handlers.NewDatasource)
 	router.GET("/project/:key/datasources", middleware.AuthMiddleware(), handlers.RetrieveDatasources)
 	router.DELETE("/project/:key/datasource/:id", middleware.AuthMiddleware(), handlers.DeleteDatasource)

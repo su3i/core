@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/darksuei/suei-intelligence/internal/domain"
+	domain "github.com/darksuei/suei-intelligence/internal/domain/cache"
 )
 
 type item struct {
