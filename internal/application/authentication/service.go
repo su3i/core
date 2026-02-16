@@ -18,9 +18,16 @@ func Login(email string, password string, commonCfg *config.CommonConfig, databa
 		return nil, errors.New("Invalid email or password")
 	}
 
+	internalRoles := make([]string, 0, len(_account.InternalRoles))
+
+	for _, v := range _account.InternalRoles {
+		internalRoles = append(internalRoles, v)
+	}
+
 	accessToken, err := authentication.GenerateJWT(authentication.JWTParams{
 		Subject:   _account.ID,
 		Email:     _account.Email,
+		Roles:	   internalRoles,
 		TTL:       time.Hour,
 		SecretKey: []byte(commonCfg.JWTSecret),
 	})
@@ -97,11 +104,18 @@ func Refresh(rawRefresh string, commonCfg *config.CommonConfig, databaseCfg *con
 	if err != nil {
 		return nil, errors.New("Invalid account")
 	}
+
+	internalRoles := make([]string, 0, len(_account.InternalRoles))
+
+	for _, v := range _account.InternalRoles {
+		internalRoles = append(internalRoles, v)
+	}
 	
 	// 3. Issue new access token
 	accessToken, _ := authentication.GenerateJWT(authentication.JWTParams{
 		Subject:   _account.ID,
 		Email:     _account.Email,
+		Roles:	   internalRoles,
 		TTL:       time.Hour,
 		SecretKey: []byte(commonCfg.JWTSecret),
 	})
