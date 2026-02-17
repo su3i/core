@@ -41,6 +41,7 @@ func (r *datasourceRepository) Find(projectId uint) (*[]datasource.Datasource, e
 func (r *datasourceRepository) Create(payload *datasource.Datasource) (*datasource.Datasource, error) {
 	_datasource := datasource.Datasource{
 		SourceType: payload.SourceType,
+		SourceID: payload.SourceID,
 		ProjectID: payload.ProjectID,
 		CreatedBy: payload.CreatedBy,
 	}

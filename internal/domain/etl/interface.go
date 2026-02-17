@@ -6,7 +6,9 @@ const (
 	EtlTypeRedis   EtlType = "airbyte"
 )
 
-// Cache defines the minimal cache operations
+// Minimal ETL operations
 type ETL interface {
-	CreateSourceConnection(name string, configuration map[string]interface{}) error
+	CreateSourceConnection(name string, configuration map[string]interface{}) (*string, error)
+	DeleteSourceConnection(sourceId string) error
+	TestSourceConnection(sourceId string) error
 }

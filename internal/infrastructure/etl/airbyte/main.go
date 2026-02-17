@@ -39,8 +39,16 @@ func retrieveAccessToken(cfg *config.AirbyteConfig) (string, error) {
 		return "", fmt.Errorf("failed to marshal token request: %w", err)
 	}
 
+	url := cfg.AirbyteEndpoint
+
+	if cfg.AirbyteCloud {
+		url += "/v1/applications/token"
+	} else {
+		url += "/api/v1/applications/token"
+	}
+
 	resp, err := http.Post(
-		cfg.AirbyteEndpoint+"/api/v1/applications/token",
+		url,
 		"application/json",
 		bytes.NewReader(body),
 	)
@@ -82,10 +90,10 @@ func Initialize(c *config.AirbyteConfig) domain.ETL {
 	}
 }
 
-func (c *AirbyteContext) CreateSourceConnection(name string, configuration map[string]interface{}) error {
+func (c *AirbyteContext) CreateSourceConnection(name string, configuration map[string]interface{}) (*string, error) {
 	token, err := retrieveAccessToken(c.cfg)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve access token: %w", err)
+		return nil, fmt.Errorf("failed to retrieve access token: %w", err)
 	}
 
 	payload := map[string]interface{}{
@@ -96,12 +104,20 @@ func (c *AirbyteContext) CreateSourceConnection(name string, configuration map[s
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("failed to marshal payload: %w", err)
+		return nil, fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.cfg.AirbyteEndpoint+"/api/public/v1/sources", bytes.NewReader(body))
+	url := c.cfg.AirbyteEndpoint
+
+	if c.cfg.AirbyteCloud {
+		url += "/v1/sources"
+	} else {
+		url += "/api/public/v1/sources"
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -109,17 +125,98 @@ func (c *AirbyteContext) CreateSourceConnection(name string, configuration map[s
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to create source connection: %w", err)
+		return nil, fmt.Errorf("failed to create source connection: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to create source connection (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("failed to create source connection (status %d): %s", resp.StatusCode, string(respBody))
 	}
 
 	log.Printf("Successfully created new source - %s", respBody)
+
+	var result struct {
+		SourceId string `json:"sourceId"`
+	}
+	
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	
+	return &result.SourceId, nil
+}
+
+func (c *AirbyteContext) DeleteSourceConnection(sourceId string) error {
+	token, err := retrieveAccessToken(c.cfg)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve access token: %w", err)
+	}
+
+	url := c.cfg.AirbyteEndpoint
+
+	if c.cfg.AirbyteCloud {
+		url += fmt.Sprintf("/v1/sources/%s", sourceId)
+	} else {
+		url += fmt.Sprintf("/api/public/v1/sources/%s", sourceId)
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to delete source connection: %w", err)
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to delete source connection (status %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	return nil
+}
+
+func (c *AirbyteContext) TestSourceConnection(sourceId string) error {
+	token, err := retrieveAccessToken(c.cfg)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve access token: %w", err)
+	}
+
+	url := c.cfg.AirbyteEndpoint
+
+	if c.cfg.AirbyteCloud {
+		url += fmt.Sprintf("/v1/streams?sourceId=%s", sourceId)
+	} else {
+		url += fmt.Sprintf("/api/public/v1/streams?sourceId=%s", sourceId)
+	}
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to test source connection: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to test source connection (status %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	log.Printf("Successfully tested source connection - %s", respBody)
 
 	return nil
 }

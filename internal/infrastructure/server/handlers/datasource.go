@@ -13,6 +13,7 @@ import (
 	"github.com/darksuei/suei-intelligence/internal/infrastructure/etl"
 	"github.com/darksuei/suei-intelligence/internal/infrastructure/server/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func SupportedDatasources(c *gin.Context) {
@@ -37,20 +38,10 @@ func NewDatasource(c *gin.Context) {
 		return
 	}
 
-	key := c.Param("key") // assumes route is like /projects/:key
-	if key == "" {
+	projectKey := c.Param("key") // assumes route is like /projects/:key
+	if projectKey == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Project key is required",
-		})
-		return
-	}
-
-	// Authorization
-	allow, err := authorizationService.EnforceRoles(utils.GetUserRolesFromContext(c), "org", authorizationDomain.Organization, "write")
-
-	if err != nil || !allow {
-		c.JSON(http.StatusForbidden, gin.H{
-			"error": "forbidden",
 		})
 		return
 	}
@@ -70,9 +61,45 @@ func NewDatasource(c *gin.Context) {
 		return
 	}
 
-	var _datasource *datasourceDomain.Datasource
-	var datasourceID uint
+	// Authorization
+	allow, err := authorizationService.EnforceRoles(utils.GetUserRolesFromContext(c), "org", authorizationDomain.Organization, "write")
 
+	if err != nil || !allow {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "forbidden",
+		})
+		return
+	}
+
+	configuration := req.Configuration
+	configuration["sourceType"] = req.SourceType
+
+	sourceId, err := etl.GetInstance().CreateSourceConnection(uuid.New().String(), configuration)
+
+	if err != nil {
+		log.Printf("Error creating datasource: %v", err)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	// Test connection
+	err = etl.GetInstance().TestSourceConnection(*sourceId)
+
+	// If connection fails - delete ETL source
+	if err != nil {
+		// Rollback CREATED ETL source
+		etl.GetInstance().DeleteSourceConnection(*sourceId)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to connect to datasource, please check your connection details and try again.",
+		})
+		return
+	}
+
+	// If success, create datasource
 	createdByEmail, err := utils.GetUserEmailFromContext(c)
 
 	if err != nil || createdByEmail == nil{
@@ -83,29 +110,10 @@ func NewDatasource(c *gin.Context) {
 	}
 
 	// Create datasource
-	_datasource, err = datasourceService.NewDatasource(key, req.SourceType, *createdByEmail, config.Database())
-
-	datasourceID = _datasource.ID
+	_datasource, err := datasourceService.NewDatasource(projectKey, req.SourceType, *sourceId, *createdByEmail, config.Database())
 
 	if err != nil {
 		log.Printf("Error creating datasource: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-
-	configuration := req.Configuration
-	configuration["sourceType"] = req.SourceType
-
-	err = etl.GetInstance().CreateSourceConnection(strconv.FormatUint(uint64(datasourceID), 10), configuration)
-
-	if err != nil {
-		// Rollback CREATED Datasource
-		datasourceService.HardDeleteDatasource(uint(datasourceID), key, config.Database())
-
-		log.Printf("Error creating datasource: %v", err)
-
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
