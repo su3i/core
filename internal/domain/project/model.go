@@ -13,7 +13,7 @@ type Project struct {
 	Key             string                   `gorm:"unique;not null"`
 	Status          ProjectStatus            `gorm:"type:text;not null"`
 	Stage           ProjectStage             `gorm:"type:text;not null"`
-	BusinessDomain  ProjectBusinessDomain    `gorm:"type:text;not null"`
+	BusinessDomain  string    				 `gorm:"not null"`
 	CreatedBy       map[string]string 		 `gorm:"type:jsonb;serializer:json;default:'{}'"`
 	DataSources     []datasource.Datasource  `gorm:"foreignKey:ProjectID"`
 }

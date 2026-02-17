@@ -50,7 +50,7 @@ func NewProject(c *gin.Context) {
 	}
 
 	// Create project
-	_project, err := project.NewProject(req.Name, req.Key, projectDomain.ProjectStage(req.Stage), projectDomain.ProjectBusinessDomain(req.BusinessDomain), *createdByEmail, config.Database())
+	_project, err := project.NewProject(req.Name, req.Key, projectDomain.ProjectStage(req.Stage), req.BusinessDomain, *createdByEmail, config.Database())
 
 	if err != nil {
 		log.Printf("Error creating project: %v", err)
@@ -147,9 +147,9 @@ func UpdateProject(c *gin.Context) {
 
     var req struct {
 		Name           *string                         `json:"name,omitempty"`
-		Key           *string                         `json:"key,omitempty"`
+		Key            *string                         `json:"key,omitempty"`
 		Stage          *projectDomain.ProjectStage     `json:"stage,omitempty"`
-		BusinessDomain *projectDomain.ProjectBusinessDomain `json:"businessDomain,omitempty"`
+		BusinessDomain *string						   `json:"businessDomain,omitempty"`
 		CreatedByEmail *string                         `json:"createdByEmail,omitempty"`
 	}
 

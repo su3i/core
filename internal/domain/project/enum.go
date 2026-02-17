@@ -14,10 +14,3 @@ const (
 	Sandbox ProjectStage = "SANDBOX"
 	Production ProjectStage = "PRODUCTION"
 )
-
-type ProjectBusinessDomain string
-
-const (
-	Ecommerce ProjectBusinessDomain = "ECOMMERCE"
-	Insurance ProjectBusinessDomain = "INSURANCE"
-)

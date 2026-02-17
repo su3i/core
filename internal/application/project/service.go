@@ -10,7 +10,7 @@ import (
 	"github.com/darksuei/suei-intelligence/internal/infrastructure/database"
 )
 
-func NewProject(name string, key string,stage projectDomain.ProjectStage, businessDomain projectDomain.ProjectBusinessDomain, createdByEmail string, cfg *config.DatabaseConfig) (*project.Project, error) {
+func NewProject(name string, key string,stage projectDomain.ProjectStage, businessDomain string, createdByEmail string, cfg *config.DatabaseConfig) (*project.Project, error) {
 	_projectRepository := database.NewProjectRepository(cfg)
 
 	_project, err := _projectRepository.FindOneByKey(key)
@@ -63,7 +63,7 @@ func UpdateProject(
     name *string,
     newKey *string,
     stage *projectDomain.ProjectStage,
-    businessDomain *projectDomain.ProjectBusinessDomain,
+    businessDomain *string,
     cfg *config.DatabaseConfig,
 ) (*project.Project, error) {
     _projectRepository := database.NewProjectRepository(cfg)
